@@ -18,10 +18,18 @@ REST API + web UI for clinicians.
 ## Project Structure
 See `docs/architecture.md`.
 
+## Prerequisites
+- Python 3.11 (recommended) or Python 3.12
+- Git
+- pip
+
+**Note:** PyTorch currently has limited support for Python 3.14. Create the virtual
+environment using Python 3.11 or 3.12 to ensure all dependencies install correctly.
+
 ## Setup
 ```bash
-python -m venv venv
-source venv/bin/activate
+python3.11 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
