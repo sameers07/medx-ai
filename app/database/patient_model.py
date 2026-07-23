@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
 from sqlalchemy.orm import relationship
 
-from app.database.connection import Base
+from app.database.base import Base
 
 
 class Patient(Base):
