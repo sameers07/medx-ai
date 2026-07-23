@@ -1,0 +1,30 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+
+# data & models
+datasets/*
+!datasets/README.md
+*.pth
+*.pt
+*.h5
+*.ckpt
+models_weights/
+
+# logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# docker
+*.pid
