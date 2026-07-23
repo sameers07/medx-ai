@@ -18,6 +18,7 @@ datasets/*
 *.h5
 *.ckpt
 models_weights/
+storage/
 
 # logs
 *.log

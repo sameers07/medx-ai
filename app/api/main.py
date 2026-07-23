@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api.routes import health, history, predict, root
+from app.api.routes import health, history, predict, root, upload
 from app.config.constants import APP_TITLE, APP_VERSION
 from app.core.exceptions import register_exception_handlers
 from app.core.shutdown import on_shutdown
@@ -37,5 +37,6 @@ register_exception_handlers(app)
 
 app.include_router(root.router)
 app.include_router(health.router)
+app.include_router(upload.router)
 app.include_router(predict.router)
 app.include_router(history.router)
