@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, func
 from sqlalchemy.orm import relationship
 
-from app.database.connection import Base
+from app.database.base import Base
 
 
 class Prediction(Base):
