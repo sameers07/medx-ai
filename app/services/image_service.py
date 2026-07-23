@@ -1,10 +1,11 @@
-"""ImageService — validation for uploaded chest X-ray images.
-
-Preprocessing (resize/normalize/tensor conversion) lands in feature/preprocessing.
-"""
+"""ImageService — validation + preprocessing for uploaded chest X-ray images."""
 from PIL import Image, UnidentifiedImageError
+from torch import Tensor
+
+from app.preprocessing.transforms import get_transforms
 
 _ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+_eval_transform = get_transforms(train=False)
 
 
 class InvalidImageError(ValueError):
@@ -32,5 +33,7 @@ class ImageService:
         finally:
             stream.seek(0)
 
-    def preprocess(self, image_path: str):
-        raise NotImplementedError("Wired up in feature/preprocessing")
+    def preprocess(self, image_path: str) -> Tensor:
+        """Loads an image from disk and returns a normalized, batched tensor (1, C, H, W)."""
+        image = Image.open(image_path).convert("RGB")
+        return _eval_transform(image).unsqueeze(0)
