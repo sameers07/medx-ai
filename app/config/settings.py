@@ -23,12 +23,15 @@ class Settings(BaseSettings):
     model_weights_path: str = "training/checkpoints/model.pth"
     device: str = "cpu"
 
+    # Storage
+    storage_dir: str = "storage"
+
     # LLM
     llm_provider: str = "openai"
     llm_api_key: str = ""
     llm_model: str = "gpt-4o-mini"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", protected_namespaces=())
 
 
 settings = Settings()

@@ -1,9 +1,39 @@
-"""ImageService — stub. Image validation/preprocessing not wired in yet."""
+"""ImageService — validation + preprocessing for uploaded chest X-ray images."""
+from PIL import Image, UnidentifiedImageError
+from torch import Tensor
+
+from app.preprocessing.transforms import get_transforms
+
+_ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg"}
+_eval_transform = get_transforms(train=False)
+
+
+class InvalidImageError(ValueError):
+    pass
 
 
 class ImageService:
-    def validate(self, file):
-        raise NotImplementedError
+    def validate(self, file) -> None:
+        """Checks extension and that the content is a readable image.
 
-    def preprocess(self, image_path: str):
-        raise NotImplementedError
+        `file` is a FastAPI `UploadFile` (or anything exposing `.filename` and `.file`).
+        Raises `InvalidImageError` on failure; returns None on success.
+        """
+        filename = getattr(file, "filename", "") or ""
+        ext = "." + filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+        if ext not in _ALLOWED_EXTENSIONS:
+            raise InvalidImageError(f"Unsupported file extension: {filename!r}")
+
+        stream = getattr(file, "file", file)
+        try:
+            image = Image.open(stream)
+            image.verify()
+        except UnidentifiedImageError as e:
+            raise InvalidImageError(f"File is not a valid image: {filename!r}") from e
+        finally:
+            stream.seek(0)
+
+    def preprocess(self, image_path: str) -> Tensor:
+        """Loads an image from disk and returns a normalized, batched tensor (1, C, H, W)."""
+        image = Image.open(image_path).convert("RGB")
+        return _eval_transform(image).unsqueeze(0)

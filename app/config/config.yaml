@@ -3,6 +3,21 @@ model:
   num_classes: 14
   input_size: 224
   pretrained: true
+  class_names:
+    - Atelectasis
+    - Cardiomegaly
+    - Effusion
+    - Infiltration
+    - Mass
+    - Nodule
+    - Pneumonia
+    - Pneumothorax
+    - Consolidation
+    - Edema
+    - Emphysema
+    - Fibrosis
+    - Pleural_Thickening
+    - Hernia
 
 training:
   batch_size: 32

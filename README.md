@@ -20,7 +20,7 @@ See `docs/architecture.md`.
 
 ## Setup
 ```bash
-python -m venv venv
+python3.11 -m venv venv  # torch==2.4.1 has no wheels for Python 3.13+
 source venv/bin/activate
 pip install -r requirements.txt
 ```

@@ -8,15 +8,18 @@ venv/
 .pytest_cache/
 .mypy_cache/
 .DS_Store
+*.db
 
 # data & models
 datasets/*
 !datasets/README.md
+!datasets/*.py
 *.pth
 *.pt
 *.h5
 *.ckpt
 models_weights/
+storage/
 
 # logs
 *.log
