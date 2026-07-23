@@ -90,3 +90,30 @@ def test_predict_503_without_trained_checkpoint(client, tmp_path, monkeypatch):
     response = test_client.post(f"/predict/{study_id}")
 
     assert response.status_code == 503
+
+
+def test_predict_includes_report_text_when_llm_available(client, tmp_path, monkeypatch):
+    import app.api.routes.predict as predict_route
+
+    test_client, TestSessionLocal = client
+    weights_path = tmp_path / "model.pth"
+    torch.save(build_model(config["model"]["num_classes"], pretrained=False).state_dict(), weights_path)
+    monkeypatch.setattr(settings, "model_weights_path", str(weights_path))
+    monkeypatch.setattr(settings, "storage_dir", str(tmp_path / "storage"))
+
+    class _FakeReportService:
+        def generate_report(self, findings):
+            return "Fake narrative report."
+
+    monkeypatch.setattr(predict_route, "get_report_service", lambda: _FakeReportService())
+
+    study_id = _make_study(TestSessionLocal, tmp_path)
+
+    response = test_client.post(f"/predict/{study_id}")
+
+    assert response.status_code == 201
+    assert response.json()["report_text"] == "Fake narrative report."
+
+    db = TestSessionLocal()
+    assert db.query(Prediction).filter_by(study_id=study_id).first().report_text == "Fake narrative report."
+    db.close()
