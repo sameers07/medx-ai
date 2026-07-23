@@ -1,0 +1,20 @@
+model:
+  architecture: resnet50
+  num_classes: 14
+  input_size: 224
+  pretrained: true
+
+training:
+  batch_size: 32
+  epochs: 20
+  learning_rate: 0.0001
+  optimizer: adam
+
+explainability:
+  method: gradcam
+  target_layer: layer4
+
+report_generation:
+  provider: openai
+  model: gpt-4o-mini
+  max_tokens: 512
