@@ -1,5 +1,7 @@
 # MedX AI — Advanced AI Medical Intelligence Platform
 
+[![CI](https://github.com/sameers07/medx-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/sameers07/medx-ai/actions/workflows/ci.yml)
+
 An end-to-end medical imaging AI system: disease prediction from chest X-rays,
 Grad-CAM based explainability, LLM-assisted radiology report generation, and a
 REST API + web UI for clinicians.
@@ -34,9 +36,18 @@ pip install -r requirements.txt
 ```
 
 ## Running
+
+Local dev (API only):
 ```bash
+alembic upgrade head
 uvicorn app.api.main:app --reload
 ```
+
+API + Streamlit frontend, containerized:
+```bash
+docker-compose up --build
+```
+Backend at `localhost:8000` (`/docs` for Swagger), frontend at `localhost:8501`.
 
 ## License
 See `LICENSE`.

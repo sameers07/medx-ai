@@ -1,4 +1,6 @@
 """MedX AI — Streamlit UI: upload a chest X-ray, get diagnosis + Grad-CAM + report."""
+import os
+
 import requests
 import streamlit as st
 
@@ -6,8 +8,11 @@ st.set_page_config(page_title="MedX AI", page_icon="🩻", layout="centered")
 
 st.title("MedX AI — Chest X-Ray Analysis")
 
+# BACKEND_URL lets docker-compose point this at the "api" service instead of localhost.
+DEFAULT_BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000")
+
 with st.sidebar:
-    backend_url = st.text_input("Backend URL", value="http://localhost:8000").rstrip("/")
+    backend_url = st.text_input("Backend URL", value=DEFAULT_BACKEND_URL).rstrip("/")
     patient_id = st.text_input("Patient ID", value="patient-001")
 
 uploaded_file = st.file_uploader("Upload a chest X-ray", type=["png", "jpg", "jpeg"])
