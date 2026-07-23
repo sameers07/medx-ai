@@ -2,11 +2,14 @@
 FastAPI application entrypoint. See docs/roadmap.md for what's wired up so far.
 """
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from starlette.staticfiles import StaticFiles
 
 from app.api.routes import health, history, predict, root, upload
 from app.config.constants import APP_TITLE, APP_VERSION
+from app.config.settings import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.shutdown import on_shutdown
 from app.core.startup import on_startup
@@ -23,6 +26,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title=APP_TITLE, version=APP_VERSION, lifespan=lifespan)
+
+# StaticFiles requires the directory to exist at mount time, which is before any upload
+# has necessarily happened — create it eagerly so a fresh checkout doesn't fail to boot.
+Path(settings.storage_dir).mkdir(parents=True, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=settings.storage_dir), name="storage")
 
 # Starlette wraps outer-to-inner in reverse of add_middleware call order, so RequestID
 # (added last) runs first and sets request.state.request_id before Logging reads it.
