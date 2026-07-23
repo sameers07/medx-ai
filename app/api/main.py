@@ -1,8 +1,5 @@
 """
-FastAPI application entrypoint.
-
-Bootstrap only: config, logging, DB connectivity, health check. AI endpoints (predict, history)
-are still stubs — see docs/roadmap.md for what's wired up so far.
+FastAPI application entrypoint. See docs/roadmap.md for what's wired up so far.
 """
 from contextlib import asynccontextmanager
 
