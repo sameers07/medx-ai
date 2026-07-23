@@ -1,7 +1,7 @@
 """ORM model for Users. No auth logic here — schema only."""
 from sqlalchemy import Column, Integer, String, DateTime, func
 
-from app.database.connection import Base
+from app.database.base import Base
 
 
 class User(Base):
