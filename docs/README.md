@@ -1,6 +1,9 @@
 # docs
 
-Start here if you're new to this project — read in this order for a ~10 minute understanding:
+For a polished, standalone narrative (the kind you'd hand a hiring manager or instructor), read
+[project-report.md](project-report.md) instead of working through the list below.
+
+For the ~10 minute engineering-oriented tour, read in this order:
 
 1. [architecture.md](architecture.md) — the pipeline, why each component exists, folder structure
 2. [system-design.md](system-design.md) — the "why" behind every major decision (why FastAPI, why
