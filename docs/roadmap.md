@@ -1,53 +1,57 @@
-# Roadmap (2-Day Build)
+# Roadmap
 
-Skeleton phase is complete (`v0.1.0` on `main`). Remaining work must ship in 2 days — the items
-below are the compressed, must-have scope; anything marked *(stretch)* is cut first if time runs
-short.
+Built as a sequence of small, single-purpose PRs into `develop` — infrastructure and data model
+before AI, AI before UI — rather than jumping straight from the skeleton to model training.
 
 ## Done
+
 - [x] Repo scaffold, configs, DB models, API stubs, service stubs, Docker, tests (`v0.1.0` on `main`)
+- [x] `feature/project-bootstrap` (`v0.2.0`) — `app/core/` lifecycle (startup/shutdown/exceptions/
+      dependencies), `app/middleware/` (request ID, timing, request logging), `app/database/`
+      split into `base.py`/`session.py`, `/` and `/health` routes. No AI yet — the goal was just:
+      app starts, config loads, DB connects, Swagger loads.
+- [x] `docs/python-version` — README prerequisites; `torch==2.4.1` has no wheels for Python 3.13+.
+- [x] `feature/database` — Alembic wired up (`alembic/env.py` reads the DB URL from
+      `app.config.settings`, not `alembic.ini`), one initial migration for `users`/`patients`/
+      `studies`/`predictions`. No separate "history" table — `/history` is a query pattern over
+      `predictions`/`studies`, not its own schema.
+- [x] `feature/image-upload` — `POST /upload`: validate, save to disk, create `Patient`/`Study`,
+      return `study_id`. No model involved.
+- [x] `feature/preprocessing` — `app/preprocessing/transforms.py`: resize, RGB convert, ImageNet
+      normalize, tensor conversion. No inference.
+- [x] `feature/model-training` — ResNet-50 baseline (`app/models/resnet.py`), dataset loader
+      (`datasets/chest_xray_dataset.py`, real `ChestXrayDataset` + `DummyChestXrayDataset` since no
+      real dataset is downloaded yet), training loop (`training/train.py`), `PredictionService`,
+      `GradCAMService`. Validated only against dummy/random data — diagnostic accuracy is
+      unmeasured until real chest X-ray data is loaded via `--labels-csv`/`--image-dir`.
+- [x] `feature/gradcam` — wired `PredictionService` + `GradCAMService` into `POST /predict/{study_id}`,
+      persists a `Prediction` row. Model checkpoint loads lazily (app still boots without one;
+      `/predict` returns `503` instead of crashing if no checkpoint is trained yet).
+- [x] `feature/report-generator` — `ReportService` calls the LLM configured in `config.yaml`
+      (default `gpt-4o-mini`) to turn findings into a narrative report. Failure (no `LLM_API_KEY`,
+      bad key, API error) is caught and logged — `report_text` stays `null`, request still succeeds.
+- [x] `feature/frontend` — Streamlit UI (`frontend/app.py`): upload → predict → probability chart +
+      Grad-CAM overlay + report text. Backend now also serves `/storage/*` as static files so a
+      frontend on a different host can fetch generated images.
+- [x] `feature/deployment` — production `Dockerfile` (Gunicorn + Uvicorn workers, runs
+      `alembic upgrade head` on boot), `frontend` service added to `docker-compose.yml`, GitHub
+      Actions CI (`pytest` on every push/PR to `main`/`develop`).
+- [x] `docs/roadmap-update` — this file.
 
-## Day 1 — Data + Model + Explainability (`feature/model-training`, `feature/gradcam`)
-- [x] Dataset loader: `datasets/chest_xray_dataset.py` — `ChestXrayDataset` (real data, CSV +
-      image dir, NIH ChestX-ray14/CheXpert-style labels) and `DummyChestXrayDataset` (random
-      data, since no real dataset is downloaded yet — see `datasets/README.md`). Swap in real
-      data by pointing `training/train.py` at `--labels-csv`/`--image-dir`.
-- [x] Preprocessing: `app/preprocessing/transforms.py` — normalization (ImageNet stats),
-      augmentation (train), resize-only (eval), sized from `config.yaml`. Train/val split in
-      `training/train.py` (80/20).
-- [x] Baseline model: `app/models/resnet.py` — ResNet-50, transfer learning from ImageNet, per
-      `app/config/config.yaml` (`model.architecture: resnet50`, 14 classes, 224px input). No time
-      for architecture comparisons (DenseNet/Swin) — ResNet-50 is final unless it clearly fails.
-- [x] Metrics: per-label + averaged AUC computed in `training/train.py:evaluate()`. Target AUC ≥
-      0.90 on held-out set — not yet measured against a real dataset (only exercised against
-      dummy/random data so far).
-- [x] Wire trained weights into `PredictionService` (`app/services/prediction_service.py`) —
-      loads a checkpoint and returns `{class_name: probability}`.
-- [x] Grad-CAM in `GradCAMService` (`app/services/gradcam_service.py`), targeting `layer4` per
-      `config.yaml`, via `pytorch_grad_cam`. Tested that it produces a saved overlay of the right
-      size — visual/clinical plausibility check still pending real data *(stretch, deferred)*.
-- [x] `GradCAMService.generate_heatmap()` returns the saved path; wiring it onto
-      `Prediction.gradcam_path` happens in Day 2's pipeline integration.
+## Remaining
 
-**Caveat:** all of the above is validated against `DummyChestXrayDataset` (random tensors), not
-real chest X-rays — no dataset is downloaded in this repo yet. The code paths (loader → transform
-→ model → Grad-CAM → checkpoint) work end-to-end; actual diagnostic accuracy is unmeasured until
-real data is loaded via `--labels-csv`/`--image-dir`.
+- [ ] `feature/history` — implement `GET /history/{patient_id}` (currently a stub).
+- [ ] Tag `v1.0.0` on `main` once the above is merged into `develop` and `develop` is stable.
 
-## Day 2 — Reports + API/UI + Ship (`feature/report-llm`, `feature/api-integration`, `feature/frontend`)
-- [ ] `ReportService.generate_report()` (`app/services/report_service.py`): findings → prompt →
-      narrative report via configured LLM (`report_generation` block in `config.yaml`, default
-      OpenAI `gpt-4o-mini`). Manual spot-check of output quality; skip BLEU/ROUGE scoring
-      *(stretch)*.
-- [ ] Wire `ImageService` → `PredictionService` → `GradCAMService` → `ReportService` → DB persist
-      into `run_pipeline()` (`app/inference/pipeline.py`) and the `/predict` route.
-- [ ] `/history/{patient_id}` DB queries (`app/api/routes/history.py`).
-- [ ] Streamlit frontend (`frontend/`): upload, prediction + Grad-CAM overlay, report, history view.
-- [ ] Dockerize end-to-end, finalize README, tag `v1.0.0` on `main`.
-- [ ] Auth (JWT/OAuth2 on patient-data endpoints) and per-inference audit logging *(stretch — only
-      if Day 2 core items land early)*.
+## Known gaps (not blocking v1.0.0, worth tracking)
+
+- No real chest X-ray dataset is downloaded — model/Grad-CAM code paths work, accuracy is unmeasured.
+- No auth (JWT/OAuth2) on patient-data endpoints yet.
+- No per-inference audit logging beyond the request-logging middleware.
 
 ## Branch Flow
+
 ```
-main --(v0.1.0)--> develop --> feature/* --> develop --> main (v1.0.0)
+main --(v0.1.0)--> develop --> <branch> --> PR --> develop --> ... --> main (v1.0.0)
 ```
+Each branch is reviewed via its own PR before merging — including one-line doc fixes.
