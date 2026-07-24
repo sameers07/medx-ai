@@ -1,0 +1,56 @@
+<svg viewBox="0 0 760 640" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow4" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="760" height="640" fill="#ffffff"/>
+
+  <!-- Browser -->
+  <rect x="290" y="20" width="180" height="50" rx="8" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+  <text x="380" y="50" text-anchor="middle" font-size="14">Browser (host machine)</text>
+  <line x1="380" y1="70" x2="380" y2="100" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow4)"/>
+  <text x="500" y="90" font-size="11" fill="#64748b">localhost:8501 / :8000</text>
+
+  <!-- Docker host boundary -->
+  <rect x="40" y="100" width="680" height="510" rx="12" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="60" y="125" font-size="13" fill="#64748b" font-weight="bold">Docker host — docker-compose.yml</text>
+
+  <!-- frontend container -->
+  <rect x="80" y="150" width="220" height="90" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="190" y="175" text-anchor="middle" font-size="13" font-weight="bold" fill="#78350f">frontend container</text>
+  <text x="190" y="195" text-anchor="middle" font-size="11" fill="#78350f">streamlit run frontend/app.py</text>
+  <text x="190" y="212" text-anchor="middle" font-size="11" fill="#78350f">:8501</text>
+  <text x="190" y="228" text-anchor="middle" font-size="10" fill="#78350f">BACKEND_URL=http://api:8000</text>
+
+  <!-- api container -->
+  <rect x="460" y="150" width="220" height="90" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="570" y="175" text-anchor="middle" font-size="13" font-weight="bold" fill="#14532d">api container</text>
+  <text x="570" y="195" text-anchor="middle" font-size="11" fill="#14532d">gunicorn + uvicorn workers</text>
+  <text x="570" y="212" text-anchor="middle" font-size="11" fill="#14532d">:8000</text>
+  <text x="570" y="228" text-anchor="middle" font-size="10" fill="#14532d">runs `alembic upgrade head` on boot</text>
+
+  <line x1="300" y1="195" x2="460" y2="195" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow4)"/>
+
+  <line x1="570" y1="240" x2="570" y2="280" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow4)"/>
+  <text x="670" y="265" font-size="10" fill="#64748b">waits for healthcheck</text>
+
+  <!-- db container -->
+  <rect x="460" y="280" width="220" height="80" rx="8" fill="#e0e7ff" stroke="#4338ca" stroke-width="1.5"/>
+  <text x="570" y="305" text-anchor="middle" font-size="13" font-weight="bold" fill="#312e81">db container</text>
+  <text x="570" y="325" text-anchor="middle" font-size="11" fill="#312e81">postgres:16-alpine</text>
+  <text x="570" y="342" text-anchor="middle" font-size="11" fill="#312e81">volume: postgres_data</text>
+
+  <!-- shared bind mount -->
+  <line x1="190" y1="240" x2="190" y2="440" stroke="#334155" stroke-width="1.5"/>
+  <line x1="570" y1="360" x2="570" y2="440" stroke="#334155" stroke-width="1.5"/>
+  <line x1="190" y1="440" x2="570" y2="440" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow4)"/>
+
+  <rect x="120" y="460" width="520" height="90" rx="8" fill="#fce7f3" stroke="#db2777" stroke-width="1.5"/>
+  <text x="380" y="485" text-anchor="middle" font-size="13" font-weight="bold" fill="#831843">Bind mount: .:/app</text>
+  <text x="380" y="505" text-anchor="middle" font-size="11" fill="#831843">storage/ (uploads, Grad-CAM heatmaps)</text>
+  <text x="380" y="522" text-anchor="middle" font-size="11" fill="#831843">training/checkpoints/ (model.pth)</text>
+  <text x="380" y="539" text-anchor="middle" font-size="10" fill="#831843">shared between frontend + api containers and the host</text>
+
+  <text x="380" y="600" text-anchor="middle" font-size="11" fill="#64748b">CI (.github/workflows/ci.yml) runs `pytest` on GitHub-hosted Ubuntu runners — separate from this deployment path</text>
+</svg>

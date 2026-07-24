@@ -1,0 +1,75 @@
+<svg viewBox="0 0 900 620" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="900" height="620" fill="#ffffff"/>
+
+  <!-- Browser -->
+  <rect x="370" y="20" width="160" height="50" rx="8" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+  <text x="450" y="50" text-anchor="middle" font-size="15" fill="#0c4a6e">Browser</text>
+  <line x1="450" y1="70" x2="450" y2="100" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Streamlit -->
+  <rect x="340" y="100" width="220" height="50" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+  <text x="450" y="130" text-anchor="middle" font-size="15" fill="#78350f">Streamlit Frontend (frontend/app.py)</text>
+  <line x1="450" y1="150" x2="450" y2="180" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- FastAPI -->
+  <rect x="320" y="180" width="260" height="50" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+  <text x="450" y="210" text-anchor="middle" font-size="15" fill="#14532d">FastAPI (app/api/main.py)</text>
+
+  <!-- three route branches -->
+  <line x1="450" y1="230" x2="450" y2="250" stroke="#475569" stroke-width="1.5"/>
+  <line x1="180" y1="250" x2="720" y2="250" stroke="#475569" stroke-width="1.5"/>
+  <line x1="180" y1="250" x2="180" y2="270" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="450" y1="250" x2="450" y2="270" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="720" y1="250" x2="720" y2="270" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="90" y="270" width="180" height="45" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="180" y="298" text-anchor="middle" font-size="13" fill="#4c1d95">POST /upload</text>
+
+  <rect x="360" y="270" width="180" height="45" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="450" y="298" text-anchor="middle" font-size="13" fill="#4c1d95">POST /predict/{study_id}</text>
+
+  <rect x="630" y="270" width="180" height="45" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="720" y="298" text-anchor="middle" font-size="13" fill="#4c1d95">GET /history/{patient_id}</text>
+
+  <!-- ImageService below upload -->
+  <line x1="180" y1="315" x2="180" y2="345" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="90" y="345" width="180" height="45" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="180" y="373" text-anchor="middle" font-size="13" fill="#7f1d1d">ImageService</text>
+  <text x="180" y="388" text-anchor="middle" font-size="10" fill="#7f1d1d">(validate, preprocess)</text>
+
+  <!-- predict pipeline below predict -->
+  <line x1="450" y1="315" x2="450" y2="345" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="360" y="345" width="180" height="45" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="450" y="368" text-anchor="middle" font-size="13" fill="#7f1d1d">PredictionService</text>
+  <text x="450" y="383" text-anchor="middle" font-size="10" fill="#7f1d1d">ResNet-50 (app/models/resnet.py)</text>
+
+  <line x1="450" y1="390" x2="450" y2="415" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="360" y="415" width="180" height="40" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="450" y="440" text-anchor="middle" font-size="13" fill="#7f1d1d">GradCAMService</text>
+
+  <line x1="450" y1="455" x2="450" y2="480" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <rect x="360" y="480" width="180" height="40" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+  <text x="450" y="505" text-anchor="middle" font-size="13" fill="#7f1d1d">ReportService (LLM)</text>
+
+  <!-- Storage -->
+  <rect x="600" y="345" width="150" height="45" rx="8" fill="#fce7f3" stroke="#db2777" stroke-width="1.5"/>
+  <text x="675" y="373" text-anchor="middle" font-size="13" fill="#831843">StorageService</text>
+  <line x1="540" y1="367" x2="600" y2="367" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- DB -->
+  <line x1="180" y1="390" x2="180" y2="560" stroke="#475569" stroke-width="1.5"/>
+  <line x1="450" y1="520" x2="450" y2="560" stroke="#475569" stroke-width="1.5"/>
+  <line x1="720" y1="315" x2="720" y2="560" stroke="#475569" stroke-width="1.5"/>
+  <line x1="180" y1="560" x2="720" y2="560" stroke="#475569" stroke-width="1.5"/>
+  <line x1="450" y1="560" x2="450" y2="580" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="320" y="580" width="260" height="40" rx="8" fill="#e0e7ff" stroke="#4338ca" stroke-width="1.5"/>
+  <text x="450" y="605" text-anchor="middle" font-size="14" fill="#312e81">PostgreSQL / SQLite</text>
+
+  <text x="450" y="605" text-anchor="middle" font-size="14" fill="#312e81"></text>
+</svg>
