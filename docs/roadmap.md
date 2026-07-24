@@ -37,15 +37,25 @@ before AI, AI before UI — rather than jumping straight from the skeleton to mo
       `alembic upgrade head` on boot), `frontend` service added to `docker-compose.yml`, GitHub
       Actions CI (`pytest` on every push/PR to `main`/`develop`).
 - [x] `docs/roadmap-update` — this file.
+- [x] `feature/history` — implemented `GET /history/{patient_id}`, ordered by `id` (not
+      `created_at` — SQLite's `CURRENT_TIMESTAMP` only has second resolution, which sorted
+      same-second predictions ambiguously).
+- [x] Postgres added to `docker-compose.yml` (`db` service) for dev/prod parity — SQLite remains
+      the zero-setup default when running `uvicorn` directly, outside Docker.
+- [x] `v1.0.0` tagged on `main`.
+- [x] `feature/real-data` — `scripts/download_sample_data.py` pulls a genuine NIH ChestX-ray14
+      subset (300 real images + labels, via a public no-auth-required HF mirror) into
+      `datasets/chestxray14/`. `training/train.py` run against it for real: val AUC climbed
+      0.57 → 0.70 over 3 epochs, confirming the full pipeline (loader → transforms → ResNet-50 →
+      checkpoint → `PredictionService` → `GradCAMService`) works end-to-end on authentic data, not
+      just `DummyChestXrayDataset`.
 
-## Remaining
+## Known gaps (worth tracking)
 
-- [ ] `feature/history` — implement `GET /history/{patient_id}` (currently a stub).
-- [ ] Tag `v1.0.0` on `main` once the above is merged into `develop` and `develop` is stable.
-
-## Known gaps (not blocking v1.0.0, worth tracking)
-
-- No real chest X-ray dataset is downloaded — model/Grad-CAM code paths work, accuracy is unmeasured.
+- Only 300 real images have been used, for a quick pipeline check — not remotely enough for a
+  clinically meaningful model. The AUC ≥ 0.90 target and Grad-CAM's clinical-plausibility check
+  are still unmet; scaling up to the full dataset (or at least a few thousand images, more epochs)
+  is real future work, not a formality.
 - No auth (JWT/OAuth2) on patient-data endpoints yet.
 - No per-inference audit logging beyond the request-logging middleware.
 
