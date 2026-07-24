@@ -7,10 +7,15 @@ cp .env.example .env   # fill in LLM_API_KEY etc.
 docker-compose up --build
 ```
 
-Starts two services:
-- `api` — FastAPI, served by Gunicorn with Uvicorn workers (`Dockerfile`). Runs
-  `alembic upgrade head` on container start before serving.
+Starts three services:
+- `db` — Postgres 16, so local dev/CI-via-compose matches production instead of running only
+  against SQLite. `api`'s `DATABASE_URL` is overridden to point here regardless of what's in `.env`.
+- `api` — FastAPI, served by Gunicorn with Uvicorn workers (`Dockerfile`). Waits for `db`'s
+  healthcheck, then runs `alembic upgrade head` on container start before serving.
 - `frontend` — Streamlit, pointed at `api` over the Docker network (`BACKEND_URL=http://api:8000`).
+
+Running the API directly with `uvicorn` (no Docker) still defaults to the SQLite file in
+`.env.example` — Postgres is only used when going through `docker-compose`.
 
 ## CI
 
