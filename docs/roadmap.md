@@ -61,13 +61,16 @@ before AI, AI before UI — rather than jumping straight from the skeleton to mo
       than an earlier one — see `model.md`'s overfitting section), and a fixed random seed for
       reproducibility (two unseeded runs of the same config had produced val AUC 0.71 and 0.66).
       Also discovered `DEVICE=mps` works for GPU training on Apple Silicon — ~5x faster per epoch
-      than CPU. Best val AUC observed (seeded): **0.72** (epoch 3 of 10), reproducing the same
-      overfitting-after-a-few-epochs pattern seen in the earlier 300-image run.
+      than CPU. A code review then caught a real, pre-existing bug: training augmentation was
+      never actually applied (a shared-dataset-object mutation silently left both train and val
+      using the eval transform since the codebase's first preprocessing implementation) — fixed by
+      building two separate dataset instances instead. Best val AUC observed (seeded, post-fix):
+      **0.71** (epoch 4 of 10), with visibly gentler overfitting than the pre-fix runs.
 
 ## Known gaps (worth tracking)
 
 - Only ~2,000 real images have been used — a real step up from 300, but still nowhere near enough
-  for a clinically meaningful model. The AUC ≥ 0.90 target is still unmet (best observed: 0.72),
+  for a clinically meaningful model. The AUC ≥ 0.90 target is still unmet (best observed: 0.71),
   and the model overfits within ~3-5 epochs at this scale — see `model.md`. Scaling to the full
   ~112k-image dataset, plus explicit early stopping, is real future work, not a formality.
 - No auth (JWT/OAuth2) on patient-data endpoints yet.

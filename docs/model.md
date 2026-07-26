@@ -64,18 +64,25 @@ every epoch alongside training loss and the current learning rate.
 
 ## Overfitting, observed repeatedly
 
-A real training run on 2,000 real images for 10 epochs (`--seed 42`, for reproducibility — see
-below): **val AUC peaked at 0.72 (epoch 3)**, while train loss kept dropping all the way to 0.14 by
-epoch 10 — the model was fitting the training set increasingly well while validation performance
-plateaued and drifted down for the rest of the run. This is not a one-off: three separate runs at
-this scale (one on CPU, two on MPS, before and after fixing the random seed) all showed the same
-shape — val AUC peaks early (epoch 3–5) then degrades while train loss keeps falling. That's a
-real, reproducible characteristic of training at this dataset size, not noise.
+A real, seeded training run on 2,000 real images for 10 epochs: **val AUC peaked at 0.71 (epoch
+4)**, while train loss kept dropping to 0.62 by epoch 10 — the model fitting the training set
+increasingly well while validation performance plateaued. This is not a one-off: four separate
+runs at this scale (CPU and MPS, before and after fixing a random-seed bug and a data-augmentation
+bug — see below) all showed the same shape: val AUC peaks early (epoch 3-5) then plateaus or
+degrades while train loss keeps falling. That's a real, reproducible characteristic of training at
+this dataset size, not noise.
 
-**Reproducibility note:** the exact peak epoch/AUC vary between runs of identical hyperparameters
-if no random seed is fixed (hit this directly — two otherwise-identical runs produced 0.71 and 0.66
-before `training/train.py` set `torch.manual_seed()`). `--seed` (default 42) now makes weight
-init, the train/val split, and data shuffling reproducible.
+**Two real bugs were found and fixed while producing this number, not before:**
+- **No fixed random seed** — two otherwise-identical runs produced val AUC 0.71 and 0.66.
+  `--seed` (default 42) now makes weight init, the train/val split, and data shuffling
+  reproducible.
+- **Training augmentation was never actually applied.** `random_split` returns two `Subset`
+  objects that share one underlying dataset instance; setting `.dataset.transform` for train then
+  val left *both* splits using the eval transform (no augmentation, ever) since the second
+  assignment silently overwrote the first on the shared object. Fixed by constructing two
+  separate dataset instances (one per transform) instead of mutating a shared one. After the fix,
+  overfitting is visibly gentler — val AUC stays in the 0.69-0.71 range through epoch 10 instead of
+  degrading to 0.57-0.66 like the pre-fix runs, though the peak AUC itself is similar.
 
 This is exactly why checkpoint selection now saves the best epoch, not the last: before that fix,
 the *actual saved checkpoint* was the worse, overfit one, even though the training run itself

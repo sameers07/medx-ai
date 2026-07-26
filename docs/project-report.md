@@ -102,12 +102,13 @@ optimizer with a `CosineAnnealingLR` schedule. Preprocessing: RGB conversion, re
 ImageNet normalization, with random-crop/flip augmentation during training only.
 
 Validated with per-label and averaged AUC (`sklearn.roc_auc_score`) on an 80/20 held-out split. A
-real, seeded training run against 2,000 real images for 10 epochs produced **best val AUC 0.72
-(epoch 3)** — genuine learning, on genuine data, far short of the documented target (AUC ≥ 0.90,
+real, seeded training run against 2,000 real images for 10 epochs produced **best val AUC 0.71
+(epoch 4)** — genuine learning, on genuine data, far short of the documented target (AUC ≥ 0.90,
 matching published full-dataset baselines). The model reproducibly overfits after ~3-5 epochs at
-this scale (train loss kept falling to 0.14 by epoch 10 while val AUC drifted down) — seen on three
-separate runs, which is why the checkpoint saved to disk is now the *best* epoch by val AUC, not simply the
-last one. Full detail in [model.md](model.md).
+this scale — seen on four separate runs, which is why the checkpoint saved to disk is now the
+*best* epoch by val AUC, not simply the last one. Full detail, including a real bug a code review
+caught (training augmentation was silently never applied, from the very first preprocessing
+implementation), in [model.md](model.md).
 
 ## 8. Explainability (Grad-CAM)
 
@@ -155,14 +156,18 @@ calls against a live `uvicorn` process, a full build-and-run of the actual Docke
 logs), and a real trained checkpoint run through prediction and Grad-CAM on an actual image. Real
 bugs were caught this way that no unit test would have found — the `libGL.so.1` container
 crash-loop (Section 10) and a `KeyError: 'User'` from an unregistered SQLAlchemy model
-(`docs/database.md`) both surfaced only when the running system was actually exercised.
+(`docs/database.md`) both surfaced only when the running system was actually exercised. A
+complementary, non-runtime bug — training augmentation silently never being applied, present
+since the first preprocessing implementation — was instead caught by a code review, and confirmed
+empirically before being trusted (see [model.md](model.md)). Between the two, the lesson is the
+same: verify claims (whether "the tests pass" or "this looks right"), don't just make them.
 
 ## 12. Results
 
 - Full pipeline (`upload → predict → Grad-CAM → report → history`) works end-to-end over real
   HTTP, against real Postgres, in real Docker containers — not just in isolated unit tests.
 - A real (if small) training run on genuine chest X-ray data shows the model learning: best val
-  AUC 0.72 (epoch 3 of 10, seeded run), with a reproducible overfitting pattern past that point.
+  AUC 0.71 (epoch 4 of 10, seeded run), with a reproducible overfitting pattern past that point.
 - Grad-CAM produces a real, visually-inspected heatmap overlay for a real prediction.
 - Report generation's failure path (no LLM configured) was exercised for real and confirmed not to
   break the rest of the response.

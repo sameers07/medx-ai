@@ -8,12 +8,12 @@ that doesn't have any listed.
 - **Only ~2,000 real training images have been used** (`scripts/download_sample_data.py`) — a
   meaningful step up from an earlier 300-image run, but still nowhere near the scale (or the
   documented AUC ≥ 0.90 target) a clinically usable model would need. Best val AUC observed:
-  **0.72** (epoch 3 of 10, seeded run) — see [model.md](model.md).
+  **0.71** (epoch 4 of 10, seeded run) — see [model.md](model.md).
 - **The model overfits within ~3-5 epochs at this dataset size** — training loss keeps dropping
-  while validation AUC plateaus and drifts down. Observed on three separate runs, so it's a real
-  characteristic of training at this scale, not noise. Checkpoint selection now saves the best
-  epoch rather than the last (see [model.md](model.md)), which avoids *shipping* the overfit
-  model, but doesn't fix the overfitting itself — more data and/or explicit early stopping would.
+  while validation AUC plateaus. Observed on four separate runs, so it's a real characteristic of
+  training at this scale, not noise. Checkpoint selection now saves the best epoch rather than the
+  last (see [model.md](model.md)), which avoids *shipping* the overfit model, but doesn't fix the
+  overfitting itself — more data and/or explicit early stopping would.
 - **No clinical validation.** Grad-CAM heatmaps have not been reviewed by a radiologist for
   plausibility; "the pipeline produces a heatmap" is not the same claim as "the heatmap highlights
   the right region." In at least one generated heatmap, attention landed partly on an image

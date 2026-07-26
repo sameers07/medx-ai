@@ -15,12 +15,14 @@ data).
 **Training data:** `scripts/download_sample_data.py` pulls a small (~2,000 image) but genuine NIH
 ChestX-ray14 subset from a public, no-auth-required Hugging Face mirror into
 `datasets/chestxray14/`. `DummyChestXrayDataset` (random tensors) still exists for quick pipeline
-smoke-testing without a network call. Best val AUC observed so far: 0.72 (epoch 3 of 10, `--seed
-42`) — the model reproducibly overfits within ~3-5 epochs at this scale (train loss keeps
-dropping, val AUC plateaus/degrades), which is why `training/train.py` now saves the best epoch by
-val AUC rather than just the last one, and fixes a random seed (unseeded runs of the same config
-varied 0.71 vs 0.66). `DEVICE=mps` works for GPU training on Apple Silicon (~5x faster/epoch than
-CPU); no CUDA GPU in this environment. Nowhere near the documented AUC ≥ 0.90 target or a
+smoke-testing without a network call. Best val AUC observed so far: 0.71 (epoch 4 of 10, `--seed
+42`) — the model reproducibly overfits within ~3-5 epochs at this scale, which is why
+`training/train.py` now saves the best epoch by val AUC rather than just the last one, fixes a
+random seed (unseeded runs of the same config varied 0.71 vs 0.66), and — important — no longer
+has the pre-existing bug where `random_split`'s shared `Subset.dataset` reference meant setting
+`.transform` for val silently overwrote it for train too, so augmentation was never actually
+applied until this branch. `DEVICE=mps` works for GPU training on Apple Silicon (~5x faster/epoch
+than CPU); no CUDA GPU in this environment. Nowhere near the documented AUC ≥ 0.90 target or a
 clinically meaningful model — don't cite these numbers as if they mean anything beyond "the
 pipeline demonstrably learns."
 

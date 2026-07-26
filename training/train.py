@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 from sklearn.metrics import roc_auc_score
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 
 from app.config.logging import get_logger, setup_logging
 from app.config.model_config import config
@@ -21,11 +21,12 @@ from datasets.chest_xray_dataset import ChestXrayDataset, DummyChestXrayDataset
 logger = get_logger(__name__)
 
 
-def build_dataset(args):
+def build_dataset(args, transform=None):
     if args.labels_csv and args.image_dir:
-        return ChestXrayDataset(args.labels_csv, args.image_dir, transform=None)
-    logger.warning("No --labels-csv/--image-dir given — training on DummyChestXrayDataset.")
-    return DummyChestXrayDataset(size=args.dummy_size, input_size=config["model"]["input_size"])
+        return ChestXrayDataset(args.labels_csv, args.image_dir, transform=transform)
+    return DummyChestXrayDataset(
+        size=args.dummy_size, input_size=config["model"]["input_size"], transform=transform
+    )
 
 
 def compute_pos_weight(loader) -> torch.Tensor:
@@ -70,14 +71,24 @@ def train(args):
     torch.manual_seed(args.seed)
     device = torch.device(settings.device)
 
+    if not (args.labels_csv and args.image_dir):
+        logger.warning("No --labels-csv/--image-dir given — training on DummyChestXrayDataset.")
+
     train_tf = get_transforms(train=True)
     eval_tf = get_transforms(train=False)
 
-    dataset = build_dataset(args)
-    val_size = max(1, int(0.2 * len(dataset)))
-    train_ds, val_ds = random_split(dataset, [len(dataset) - val_size, val_size])
-    train_ds.dataset.transform = train_tf
-    val_ds.dataset.transform = eval_tf
+    # Build two separate dataset instances (one per transform) rather than splitting one
+    # dataset with random_split and mutating .transform afterwards — Subset.dataset is a
+    # shared reference, so setting it for val after train silently left *both* splits using
+    # eval_tf (no augmentation was ever actually applied during training).
+    n = len(build_dataset(args))
+    val_size = max(1, int(0.2 * n))
+    generator = torch.Generator().manual_seed(args.seed)
+    perm = torch.randperm(n, generator=generator).tolist()
+    val_indices, train_indices = perm[:val_size], perm[val_size:]
+
+    train_ds = Subset(build_dataset(args, transform=train_tf), train_indices)
+    val_ds = Subset(build_dataset(args, transform=eval_tf), val_indices)
 
     train_loader = DataLoader(train_ds, batch_size=config["training"]["batch_size"], shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=config["training"]["batch_size"])

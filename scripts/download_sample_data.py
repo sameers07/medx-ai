@@ -53,10 +53,29 @@ def fetch_rows(split: str, offset: int, length: int) -> list[dict]:
 
 
 def _already_downloaded(labels_csv: Path) -> int:
+    """Returns how many valid rows are already saved, discarding a trailing malformed row.
+
+    A crash mid-write (rare, since each row is flushed immediately, but not impossible) could
+    leave a torn final line. Trusting that line's column count would either miscount the resume
+    point or leave a corrupt row sitting in the middle of the file once new rows get appended
+    after it — so it's truncated here before anything resumes.
+    """
     if not labels_csv.exists():
         return 0
-    with open(labels_csv) as f:
-        return max(0, sum(1 for _ in f) - 1)  # minus header
+    with open(labels_csv, newline="") as f:
+        lines = f.readlines()
+    if not lines:
+        return 0
+
+    header, rows = lines[0], lines[1:]
+    expected_cols = len(header.strip().split(","))
+    valid_rows = [line for line in rows if len(line.strip().split(",")) == expected_cols]
+    # Only trust a *trailing* malformed row as "interrupted mid-write" — a malformed row
+    # anywhere else would indicate a different problem worth failing loudly on instead.
+    if len(valid_rows) != len(rows) and valid_rows == rows[: len(valid_rows)]:
+        with open(labels_csv, "w", newline="") as f:
+            f.writelines([header, *valid_rows])
+    return len(valid_rows)
 
 
 def download(n: int, split: str, out_dir: Path) -> None:
