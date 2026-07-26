@@ -8,8 +8,11 @@ mirror `Sohaibsoussi/NIH-Chest-X-ray-dataset-small`. Pulls individual images thr
 datasets-server "rows" API rather than downloading the mirror's full parquet files.
 
 ```bash
-python -m scripts.download_sample_data --n 300 --split train --out-dir datasets/chestxray14
-python -m training.train --labels-csv datasets/chestxray14/labels.csv --image-dir datasets/chestxray14
+python -m scripts.download_sample_data --n 2000 --split train --out-dir datasets/chestxray14
+python -m training.train --labels-csv datasets/chestxray14/labels.csv --image-dir datasets/chestxray14 --epochs 10
 ```
 
-Not wired into any test — it hits the network and its output is gitignored data, not code.
+Resumable: if `labels.csv` already has N rows, a rerun with the same `--split` continues from row
+N instead of starting over — a network hiccup partway through a large `--n` doesn't waste what's
+already downloaded. Each image is retried up to 5x with backoff before giving up. Not wired into
+any test — it hits the network and its output is gitignored data, not code.

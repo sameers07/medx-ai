@@ -5,15 +5,23 @@ that doesn't have any listed.
 
 ## Model / data
 
-- **Only ~300 real training images have been used**, for a quick pipeline check
-  (`scripts/download_sample_data.py`), not a real training run. Val AUC climbed 0.57 → 0.70 over 3
-  epochs — proof the pipeline learns, nowhere near the documented AUC ≥ 0.90 target or a
-  clinically usable model.
+- **Only ~2,000 real training images have been used** (`scripts/download_sample_data.py`) — a
+  meaningful step up from an earlier 300-image run, but still nowhere near the scale (or the
+  documented AUC ≥ 0.90 target) a clinically usable model would need. Best val AUC observed:
+  **0.72** (epoch 3 of 10, seeded run) — see [model.md](model.md).
+- **The model overfits within ~3-5 epochs at this dataset size** — training loss keeps dropping
+  while validation AUC plateaus and drifts down. Observed on three separate runs, so it's a real
+  characteristic of training at this scale, not noise. Checkpoint selection now saves the best
+  epoch rather than the last (see [model.md](model.md)), which avoids *shipping* the overfit
+  model, but doesn't fix the overfitting itself — more data and/or explicit early stopping would.
 - **No clinical validation.** Grad-CAM heatmaps have not been reviewed by a radiologist for
   plausibility; "the pipeline produces a heatmap" is not the same claim as "the heatmap highlights
-  the right region."
-- **No LR scheduler, no stratified train/val split, no checkpoint resume** — see
-  [model.md](model.md) for detail on each.
+  the right region." In at least one generated heatmap, attention landed partly on an image
+  marker/annotation rather than lung tissue — a concrete example of why this gap matters, not a
+  hypothetical one.
+- **No stratified train/val split, no checkpoint resume (optimizer state/epoch count aren't
+  saved)** — see [model.md](model.md) for detail. (A pos_weight class-imbalance correction and an
+  LR scheduler were both real gaps here too, and are now fixed.)
 - **Single architecture, single active model.** No ensembling, no A/B comparison between model
   versions, no way to roll back to a previous checkpoint's predictions independently of new ones.
 

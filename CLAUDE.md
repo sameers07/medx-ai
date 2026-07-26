@@ -6,17 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 MedX AI is an end-to-end medical imaging AI platform: chest X-ray upload, ResNet-50 disease
 prediction, Grad-CAM explainability, LLM-generated radiology reports, and a Streamlit frontend —
-all wired end-to-end (`v1.0.0` on `main`). See `docs/roadmap.md` for the full build history (built
+all wired end-to-end (`v1.1.0` on `main`). See `docs/roadmap.md` for the full build history (built
 as a sequence of single-purpose PRs: bootstrap → database → upload → preprocessing → model →
-Grad-CAM → reports → frontend → deployment → history) and its "Known gaps" section for what's
-still genuinely missing (auth, audit logging, real-scale training data).
+Grad-CAM → reports → frontend → deployment → history → docs → model improvements) and its
+"Known gaps" section for what's still genuinely missing (auth, audit logging, real-scale training
+data).
 
-**Training data:** `scripts/download_sample_data.py` pulls a small (~300 image) but genuine NIH
+**Training data:** `scripts/download_sample_data.py` pulls a small (~2,000 image) but genuine NIH
 ChestX-ray14 subset from a public, no-auth-required Hugging Face mirror into
 `datasets/chestxray14/`. `DummyChestXrayDataset` (random tensors) still exists for quick pipeline
-smoke-testing without a network call. Either way, 300 images / a few epochs is enough to prove the
-pipeline learns something (val AUC did climb over epochs) — it is nowhere near enough for a
-clinically meaningful model. Don't cite accuracy numbers from it as if they mean anything.
+smoke-testing without a network call. Best val AUC observed so far: 0.72 (epoch 3 of 10, `--seed
+42`) — the model reproducibly overfits within ~3-5 epochs at this scale (train loss keeps
+dropping, val AUC plateaus/degrades), which is why `training/train.py` now saves the best epoch by
+val AUC rather than just the last one, and fixes a random seed (unseeded runs of the same config
+varied 0.71 vs 0.66). `DEVICE=mps` works for GPU training on Apple Silicon (~5x faster/epoch than
+CPU); no CUDA GPU in this environment. Nowhere near the documented AUC ≥ 0.90 target or a
+clinically meaningful model — don't cite these numbers as if they mean anything beyond "the
+pipeline demonstrably learns."
 
 ## Commands
 
@@ -30,7 +36,7 @@ alembic upgrade head
 uvicorn app.api.main:app --reload
 
 # Get real training data, then train
-python -m scripts.download_sample_data --n 300 --split train
+python -m scripts.download_sample_data --n 2000 --split train
 python -m training.train --labels-csv datasets/chestxray14/labels.csv --image-dir datasets/chestxray14
 
 # Full stack, containerized (API + Streamlit frontend + Postgres)
