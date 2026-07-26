@@ -49,15 +49,33 @@ before AI, AI before UI — rather than jumping straight from the skeleton to mo
       0.57 → 0.70 over 3 epochs, confirming the full pipeline (loader → transforms → ResNet-50 →
       checkpoint → `PredictionService` → `GradCAMService`) works end-to-end on authentic data, not
       just `DummyChestXrayDataset`.
+- [x] `v1.1.0` tagged on `main`.
+- [x] `docs/system-design` — `docs/system-design.md`, `docs/database.md`, `docs/model.md`,
+      `docs/deployment.md`, `docs/known-limitations.md`, plus real SVG diagrams
+      (`docs/images/`: architecture, sequence, component, deployment, ER).
+- [x] `docs/project-report` — `docs/project-report.md` (+ PDF export), a standalone hiring-manager
+      -facing report referencing the diagrams already built rather than duplicating them.
+- [x] `feature/model-improvements` — scaled the real dataset 300 → 2,000 images; added per-class
+      `pos_weight` (class-imbalance correction), a `CosineAnnealingLR` scheduler, best-epoch
+      checkpoint selection (previously the *last* epoch was always saved, even when it was worse
+      than an earlier one — see `model.md`'s overfitting section), and a fixed random seed for
+      reproducibility (two unseeded runs of the same config had produced val AUC 0.71 and 0.66).
+      Also discovered `DEVICE=mps` works for GPU training on Apple Silicon — ~5x faster per epoch
+      than CPU. A code review then caught a real, pre-existing bug: training augmentation was
+      never actually applied (a shared-dataset-object mutation silently left both train and val
+      using the eval transform since the codebase's first preprocessing implementation) — fixed by
+      building two separate dataset instances instead. Best val AUC observed (seeded, post-fix):
+      **0.71** (epoch 4 of 10), with visibly gentler overfitting than the pre-fix runs.
 
 ## Known gaps (worth tracking)
 
-- Only 300 real images have been used, for a quick pipeline check — not remotely enough for a
-  clinically meaningful model. The AUC ≥ 0.90 target and Grad-CAM's clinical-plausibility check
-  are still unmet; scaling up to the full dataset (or at least a few thousand images, more epochs)
-  is real future work, not a formality.
+- Only ~2,000 real images have been used — a real step up from 300, but still nowhere near enough
+  for a clinically meaningful model. The AUC ≥ 0.90 target is still unmet (best observed: 0.71),
+  and the model overfits within ~3-5 epochs at this scale — see `model.md`. Scaling to the full
+  ~112k-image dataset, plus explicit early stopping, is real future work, not a formality.
 - No auth (JWT/OAuth2) on patient-data endpoints yet.
 - No per-inference audit logging beyond the request-logging middleware.
+- No live public deployment — runs locally / via `docker-compose` only.
 
 ## Branch Flow
 

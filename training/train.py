@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 from sklearn.metrics import roc_auc_score
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 
 from app.config.logging import get_logger, setup_logging
 from app.config.model_config import config
@@ -21,11 +21,24 @@ from datasets.chest_xray_dataset import ChestXrayDataset, DummyChestXrayDataset
 logger = get_logger(__name__)
 
 
-def build_dataset(args):
+def build_dataset(args, transform=None):
     if args.labels_csv and args.image_dir:
-        return ChestXrayDataset(args.labels_csv, args.image_dir, transform=None)
-    logger.warning("No --labels-csv/--image-dir given — training on DummyChestXrayDataset.")
-    return DummyChestXrayDataset(size=args.dummy_size, input_size=config["model"]["input_size"])
+        return ChestXrayDataset(args.labels_csv, args.image_dir, transform=transform)
+    return DummyChestXrayDataset(
+        size=args.dummy_size, input_size=config["model"]["input_size"], transform=transform
+    )
+
+
+def compute_pos_weight(loader) -> torch.Tensor:
+    """neg/pos ratio per class, for BCEWithLogitsLoss's pos_weight (class-imbalance correction).
+
+    Capped at 50x — an uncapped ratio on a near-zero-positive class (e.g. Hernia at this dataset
+    size) would massively over-weight the rare positive examples and destabilize training.
+    """
+    all_labels = torch.cat([labels for _, labels in loader])
+    pos = all_labels.sum(dim=0)
+    neg = all_labels.shape[0] - pos
+    return (neg / pos.clamp(min=1)).clamp(max=50.0)
 
 
 def evaluate(model, loader, device) -> float:
@@ -52,16 +65,30 @@ def evaluate(model, loader, device) -> float:
 
 def train(args):
     setup_logging()
+    # Fixed seed for reproducibility — without this, weight init, the train/val split, and
+    # shuffling all vary between runs, so identical hyperparameters can yield different results
+    # (hit this for real: two runs of the same config produced val AUC 0.71 vs 0.66).
+    torch.manual_seed(args.seed)
     device = torch.device(settings.device)
+
+    if not (args.labels_csv and args.image_dir):
+        logger.warning("No --labels-csv/--image-dir given — training on DummyChestXrayDataset.")
 
     train_tf = get_transforms(train=True)
     eval_tf = get_transforms(train=False)
 
-    dataset = build_dataset(args)
-    val_size = max(1, int(0.2 * len(dataset)))
-    train_ds, val_ds = random_split(dataset, [len(dataset) - val_size, val_size])
-    train_ds.dataset.transform = train_tf
-    val_ds.dataset.transform = eval_tf
+    # Build two separate dataset instances (one per transform) rather than splitting one
+    # dataset with random_split and mutating .transform afterwards — Subset.dataset is a
+    # shared reference, so setting it for val after train silently left *both* splits using
+    # eval_tf (no augmentation was ever actually applied during training).
+    n = len(build_dataset(args))
+    val_size = max(1, int(0.2 * n))
+    generator = torch.Generator().manual_seed(args.seed)
+    perm = torch.randperm(n, generator=generator).tolist()
+    val_indices, train_indices = perm[:val_size], perm[val_size:]
+
+    train_ds = Subset(build_dataset(args, transform=train_tf), train_indices)
+    val_ds = Subset(build_dataset(args, transform=eval_tf), val_indices)
 
     train_loader = DataLoader(train_ds, batch_size=config["training"]["batch_size"], shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=config["training"]["batch_size"])
@@ -69,10 +96,17 @@ def train(args):
     model = build_model(config["model"]["num_classes"], pretrained=config["model"]["pretrained"])
     model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config["training"]["learning_rate"])
-    criterion = torch.nn.BCEWithLogitsLoss()
-
     epochs = args.epochs or config["training"]["epochs"]
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=config["training"]["learning_rate"])
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    pos_weight = compute_pos_weight(train_loader).to(device)
+    criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+
+    checkpoint_path = Path(settings.model_weights_path)
+    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+    best_val_auc = float("-inf")
+
     for epoch in range(epochs):
         model.train()
         running_loss = 0.0
@@ -86,12 +120,30 @@ def train(args):
 
         train_loss = running_loss / len(train_ds)
         val_auc = evaluate(model, val_loader, device)
-        logger.info(f"epoch {epoch + 1}/{epochs} | train_loss={train_loss:.4f} | val_auc={val_auc:.4f}")
+        lr = scheduler.get_last_lr()[0]
+        scheduler.step()
 
-    checkpoint_path = Path(settings.model_weights_path)
-    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), checkpoint_path)
-    logger.info(f"Saved checkpoint to {checkpoint_path}")
+        # Save whenever val AUC improves, not just at the end — without this, a model that
+        # overfits in later epochs (train_loss keeps dropping, val_auc gets worse) silently
+        # ships the worse, overfit checkpoint. NaN comparisons are always False, so a NaN
+        # val_auc (e.g. a validation split with a single-class column) never overwrites.
+        is_best = val_auc > best_val_auc
+        if is_best:
+            best_val_auc = val_auc
+            torch.save(model.state_dict(), checkpoint_path)
+
+        logger.info(
+            f"epoch {epoch + 1}/{epochs} | train_loss={train_loss:.4f} | val_auc={val_auc:.4f} "
+            f"| lr={lr:.6f}" + (" | new best, saved" if is_best else "")
+        )
+
+    if best_val_auc == float("-inf"):
+        # val_auc was NaN every epoch (e.g. a validation split too small to compute AUC at all) —
+        # still need *a* checkpoint rather than none, so fall back to the final epoch's weights.
+        logger.warning("val_auc was never computable; saving final epoch's weights instead of 'best'.")
+        torch.save(model.state_dict(), checkpoint_path)
+
+    logger.info(f"Training complete. Best val_auc={best_val_auc:.4f}, checkpoint at {checkpoint_path}")
 
 
 def parse_args():
@@ -100,6 +152,7 @@ def parse_args():
     parser.add_argument("--image-dir", type=str, default=None)
     parser.add_argument("--dummy-size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=None, help="Overrides config.yaml if set")
+    parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()
 
 

@@ -79,15 +79,15 @@ sequence for a prediction is in [sequence-predict.svg](images/sequence-predict.s
 Training uses **NIH ChestX-ray14** — 14 thoracic conditions, the same taxonomy used throughout
 this project's `config.yaml` and database schema. Because Kaggle credentials and the official NIH
 box.com host weren't accessible in the build environment, `scripts/download_sample_data.py` pulls
-a real subset (~300 images with genuine multi-label annotations) from a public,
+a real subset (~2,000 images with genuine multi-label annotations) from a public,
 no-credential-required Hugging Face mirror instead — see [model.md](model.md) for the exact
 approach and [roadmap.md](roadmap.md)'s `feature/real-data` entry for how that dead end was found
 and worked around. `DummyChestXrayDataset` (random tensors) exists separately for fast pipeline
 smoke-testing without any network dependency — it is never used to make a claim about model
 accuracy.
 
-**Honest framing:** 300 images is a pipeline-validation sample, not a training set sized for a
-usable model. See Section 12 and 13.
+**Honest framing:** 2,000 images is a meaningful pipeline-validation sample, still not a training
+set sized for a clinically usable model. See Section 12 and 13.
 
 ## 7. Model Development
 
@@ -96,15 +96,19 @@ Dataset -> Preprocessing -> Training -> Validation -> Checkpoint -> Inference
 ```
 
 ResNet-50 (ImageNet-pretrained) with its final layer replaced for 14-way multi-label output
-(`BCEWithLogitsLoss`, independent sigmoid per class — not softmax, since a single X-ray can show
-multiple findings at once). Adam optimizer, no learning-rate scheduler (a real, acknowledged gap,
-not an oversight — see [model.md](model.md)). Preprocessing: RGB conversion, resize to 224×224,
+(`BCEWithLogitsLoss` with per-class `pos_weight` for class-imbalance correction, independent
+sigmoid per class — not softmax, since a single X-ray can show multiple findings at once). Adam
+optimizer with a `CosineAnnealingLR` schedule. Preprocessing: RGB conversion, resize to 224×224,
 ImageNet normalization, with random-crop/flip augmentation during training only.
 
 Validated with per-label and averaged AUC (`sklearn.roc_auc_score`) on an 80/20 held-out split. A
-real training run against the real 300-image subset produced **val AUC climbing 0.57 → 0.70 over 3
-epochs** — genuine learning, on genuine data, far short of the documented target (AUC ≥ 0.90,
-matching published full-dataset baselines). Full detail in [model.md](model.md).
+real, seeded training run against 2,000 real images for 10 epochs produced **best val AUC 0.71
+(epoch 4)** — genuine learning, on genuine data, far short of the documented target (AUC ≥ 0.90,
+matching published full-dataset baselines). The model reproducibly overfits after ~3-5 epochs at
+this scale — seen on four separate runs, which is why the checkpoint saved to disk is now the
+*best* epoch by val AUC, not simply the last one. Full detail, including a real bug a code review
+caught (training augmentation was silently never applied, from the very first preprocessing
+implementation), in [model.md](model.md).
 
 ## 8. Explainability (Grad-CAM)
 
@@ -152,14 +156,18 @@ calls against a live `uvicorn` process, a full build-and-run of the actual Docke
 logs), and a real trained checkpoint run through prediction and Grad-CAM on an actual image. Real
 bugs were caught this way that no unit test would have found — the `libGL.so.1` container
 crash-loop (Section 10) and a `KeyError: 'User'` from an unregistered SQLAlchemy model
-(`docs/database.md`) both surfaced only when the running system was actually exercised.
+(`docs/database.md`) both surfaced only when the running system was actually exercised. A
+complementary, non-runtime bug — training augmentation silently never being applied, present
+since the first preprocessing implementation — was instead caught by a code review, and confirmed
+empirically before being trusted (see [model.md](model.md)). Between the two, the lesson is the
+same: verify claims (whether "the tests pass" or "this looks right"), don't just make them.
 
 ## 12. Results
 
 - Full pipeline (`upload → predict → Grad-CAM → report → history`) works end-to-end over real
   HTTP, against real Postgres, in real Docker containers — not just in isolated unit tests.
-- A real (if small) training run on genuine chest X-ray data shows the model learning: val AUC
-  0.57 → 0.70 over 3 epochs.
+- A real (if small) training run on genuine chest X-ray data shows the model learning: best val
+  AUC 0.71 (epoch 4 of 10, seeded run), with a reproducible overfitting pattern past that point.
 - Grad-CAM produces a real, visually-inspected heatmap overlay for a real prediction.
 - Report generation's failure path (no LLM configured) was exercised for real and confirmed not to
   break the rest of the response.
@@ -169,7 +177,8 @@ crash-loop (Section 10) and a `KeyError: 'User'` from an unregistered SQLAlchemy
 
 Full list, with reasoning, in [known-limitations.md](known-limitations.md). Summary:
 
-- Only ~300 training images used — proves the pipeline works, not a clinically meaningful model.
+- Only ~2,000 training images used, and the model overfits within ~5 epochs at that scale — proves
+  the pipeline works, not a clinically meaningful model.
 - No clinical validation of Grad-CAM output; not FDA approved; educational purpose only.
 - **No authentication or access control on any endpoint** — the single biggest gap for anything
   beyond a local demo. `Prediction.user_id` and the `users` table exist in the schema but nothing
@@ -183,8 +192,9 @@ Full list, with reasoning, in [known-limitations.md](known-limitations.md). Summ
 ## 14. Future Improvements
 
 - **Authentication (JWT/OAuth2)** on all patient-data endpoints — the clear top priority.
-- **Scale up real training data** (thousands of images, stratified train/val split, an LR
-  scheduler) toward the documented AUC ≥ 0.90 target.
+- **Scale up real training data further** (tens of thousands of images, stratified train/val
+  split, explicit early stopping) toward the documented AUC ≥ 0.90 target — 2,000 images improved
+  on the original 300 but still overfits within ~5 epochs.
 - **Model versioning** (`model_versions` table + `Prediction.model_version_id`) so multiple trained
   models can coexist and every historical prediction stays attributed to the model that produced
   it.
